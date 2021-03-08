@@ -13,6 +13,8 @@ def create_app(config: dict = None):
     app = flask.Flask(__name__)
 
     helpers.init_config(app, config, ROOT_DIR)
+    with app.app_context():
+        helpers.init_db(app)
 
     from technical_test.routes import blueprint
     app.register_blueprint(blueprint)

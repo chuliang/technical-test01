@@ -1,3 +1,5 @@
+from unittest import mock
+
 
 def test_health(app, config):
     test_client = app.test_client()
@@ -6,3 +8,19 @@ def test_health(app, config):
 
     assert resp.status_code == 200
     assert resp.data.decode('utf-8') == config.get('HEALTHY_MESSAGE')
+
+
+def test_create_user(app):
+    test_client = app.test_client()
+    payload = dict(email='email@email.fr', password='password')
+    expected_id = 'expected_id'
+    with mock.patch('technical_test.core.helpers') as mocked_helpers:
+        mocked_db_client = mocked_helpers.get_db_client.return_value
+        mocked_db_client.insert.return_value = 'expected_id'
+
+        resp = test_client.post('/users', json=payload)
+
+    assert resp.status_code == 200
+    assert resp.json.get('email') == payload.get('email')
+    assert resp.json.get('id') == expected_id
+    assert resp.json.get('password') is None

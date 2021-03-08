@@ -10,3 +10,12 @@ services:
     volumes:
       - ./instance:/var/app/instance
       - ./technical_test:/var/app/technical_test
+    restart: on-failure
+    depends_on:
+      - mongo
+
+
+  mongo:
+    image: mongo
+    ports:
+      - "27017:27017"
