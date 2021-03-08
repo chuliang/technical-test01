@@ -26,7 +26,7 @@ def test_user_dao():
 def test_user_dao_insert():
     mocked_client = mock.Mock()
     user_dao = dao.User(mocked_client)
-    user = models.User(email='email@email.fr', password='password')
+    user = models.User(email='email@email.fr', password='password', salt='salt')
     expected_id = 'expected_id'
     mocked_client.insert.return_value = expected_id
 
@@ -42,7 +42,7 @@ def test_user_dao_update():
     user_dao = dao.User(mocked_client)
     user = models.User(
         email='email@email.fr', password='password', id='expected_id', validation_code=1234,
-        validation_code_generated_at=datetime.now(timezone.utc)
+        validation_code_generated_at=datetime.now(timezone.utc), salt='salt'
     )
 
     updated_user = user_dao.update(user)
@@ -60,7 +60,8 @@ def test_user_dao_get():
     expected_user = dict(
         id=str(bson.ObjectId()),
         email='email@email.fr',
-        password='password'
+        password='password',
+        salt='salt'
     )
     mocked_client.get.return_value = expected_user
 

@@ -175,8 +175,11 @@ def error_handler(ex):
 
     try:
         raise ex
-    except (errors.EmailError, errors.PasswordError, errors.ExistingUserEmailError):
+    except (errors.EmailError, errors.PasswordError, errors.ExistingUserEmailError, errors.InvalidPasswordError,
+            errors.InvalidValidationCodeError, errors.InvalidEmailError):
         return make_response(ex, 400)
+    except (errors.ExpiredValidationCodeError,):
+        return make_response(ex, 403)
     except:
         flask.abort(500)
 

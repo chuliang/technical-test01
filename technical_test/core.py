@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from technical_test import dao, helpers, models, errors
 from technical_test.helpers import get_logger, send_email
@@ -39,3 +39,27 @@ def send_confirmation_code_email(user):
     user = user.mutate(validation_code=validation_code, validation_code_generated_at=datetime.now(timezone.utc))
     user_dao.update(user)
     return user
+
+
+def check_validation_code(email, password, validation_code):
+    config = helpers.get_config()
+    user_dao = dao.User(helpers.get_db_client())
+    user = user_dao.get(email=email)
+    if not user:
+        raise errors.InvalidEmailError()
+
+    hashed_password, _ = helpers.hash_password(password, config.get('SECRET_KEY'), user.salt)
+    if user.password != hashed_password:
+        raise errors.InvalidPasswordError()
+
+    if user.is_valid:
+        return user
+
+    if user.validation_code != validation_code:
+        raise errors.InvalidValidationCodeError()
+
+    if user.validation_code_generated_at + timedelta(minutes=1) < datetime.now(timezone.utc):
+        raise errors.ExpiredValidationCodeError()
+
+    user = user.mutate(is_valid=True)
+    return user_dao.update(user)
