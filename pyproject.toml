@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "technical_test"
+version = "0.1.0"
+description = ""
+authors = ["Julien Tanguy"]
+
+[tool.poetry.dependencies]
+python = "3.7.10"
+Flask = "^1.1.2"
+gunicorn = "^20.0.4"
+pytest = "^6.2.2"
+
+[tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
