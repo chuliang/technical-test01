@@ -9,7 +9,8 @@ import technical_test
 def config():
     return {
         'TESTING': True,
-        'HEALTHY_MESSAGE': 'it works!'
+        'HEALTHY_MESSAGE': 'it works!',
+        'SECRET_KEY': 'SECRET_KEY'
     }
 
 

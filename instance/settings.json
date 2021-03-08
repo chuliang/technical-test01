@@ -1,5 +1,6 @@
 {
   "HEALTHY_MESSAGE": "it works!",
   "MONGO_URI": "mongodb://mongo:27017",
-  "MONGO_DB": "default"
+  "MONGO_DB": "default",
+  "SECRET_KEY": "SECRET_KEY"
 }

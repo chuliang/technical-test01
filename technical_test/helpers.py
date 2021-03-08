@@ -1,3 +1,5 @@
+import base64
+import hashlib
 import logging
 import os
 import random
@@ -38,6 +40,11 @@ def init_config(app: flask.Flask, config: dict = None, root_dir: str = None):
         app.config.from_json(settings_path)
     else:
         raise RuntimeError('env var APP_SETTINGS is not set')
+
+
+def get_config():
+    if flask.current_app:
+        return flask.current_app.config
 
 
 class BaseClientError(errors.BaseError):
@@ -172,3 +179,17 @@ def error_handler(ex):
         return make_response(ex, 400)
     except:
         flask.abort(500)
+
+
+def hash_password(password: str, secret_key: str, salt: str = None) -> typing.Tuple[str, str]:
+    if not salt:
+        encoded_salt = os.urandom(32)
+        salt = base64.b64encode(encoded_salt).decode('utf-8')
+
+    salted_key = secret_key + salt
+    encoded_salted_key = base64.b64decode(salted_key.encode('utf-8'))
+
+    hashed_password = base64.b64encode(
+        hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), encoded_salted_key, 100000)
+    ).decode('utf-8')
+    return hashed_password, salt

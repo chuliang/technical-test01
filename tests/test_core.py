@@ -6,13 +6,16 @@ import pytest
 from technical_test import core, errors
 
 
-def test_create_user():
+def test_create_user(config):
     email = 'email@email.fr'
     password = 'password'
+    hashed_password = 'hashed_password'
+    salt = 'salt'
     expected_id = 'expected_id'
     expected_validation_code = 1234
     expected_validation_code_generated_at = datetime.now(timezone.utc)
     with mock.patch.object(core, 'helpers') as mocked_helpers, mock.patch.object(core, 'datetime') as mocked_datetime:
+        mocked_helpers.hash_password.return_value = (hashed_password, salt)
         mocked_db_client = mocked_helpers.get_db_client.return_value
         # get user with this email
         mocked_db_client.get.return_value = None
@@ -23,7 +26,9 @@ def test_create_user():
         user = core.create_user(email, password)
 
     assert user.email == email
-    assert user.password == password
+    assert user.password != password
+    assert user.password == hashed_password
+    assert user.salt == salt
     assert user.id == expected_id
     assert user.validation_code == expected_validation_code
     assert user.validation_code_generated_at == expected_validation_code_generated_at

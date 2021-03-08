@@ -93,3 +93,39 @@ def test_mongo_client_get():
 
         mocked_db.get_collection.assert_called_with(entity_type)
         mocked_collection.find_one.assert_called_with(expected_query)
+
+
+def test_hash_password():
+    password = 'password'
+    secret_key = 'secret_key'
+    hashed_password, salt = helpers.hash_password(password, secret_key)
+
+    hashed_password_again_with_same_salt, same_salt = helpers.hash_password(password, secret_key, salt)
+
+    assert salt == same_salt
+    assert hashed_password == hashed_password_again_with_same_salt
+
+
+def test_hash_password_changed_secret_key():
+    password = 'password'
+    secret_key = 'secret_key'
+    hashed_password, salt = helpers.hash_password(password, secret_key)
+    new_secret_key = 'new_secret_key'
+
+    hashed_password_again_with_same_salt, same_salt = helpers.hash_password(password, new_secret_key, salt)
+
+    assert salt == same_salt
+    assert hashed_password != hashed_password_again_with_same_salt
+
+
+def test_hash_password_changed_secret_key():
+    password = 'password'
+    secret_key = 'secret_key'
+    hashed_password, salt = helpers.hash_password(password, secret_key)
+
+    new_salt = 'new_salt'
+    hashed_password_again_with_new_salt, new_returned_salt = helpers.hash_password(password, secret_key, new_salt)
+
+    assert new_salt == new_returned_salt
+    assert salt != new_returned_salt
+    assert hashed_password != hashed_password_again_with_new_salt

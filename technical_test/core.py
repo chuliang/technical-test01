@@ -15,9 +15,12 @@ def create_user(email, password):
     if existing_user:
         raise errors.ExistingUserEmailError(email)
 
+    config = helpers.get_config()
+    hashed_password, salt = helpers.hash_password(password, config.get('SECRET_KEY'))
     user = models.User(
         email=email,
-        password=password
+        password=hashed_password,
+        salt=salt
     )
     user = user_dao.insert(user)
 
