@@ -3,6 +3,7 @@ import os
 import random
 import re
 import sys
+import typing
 
 import bson
 import flask
@@ -85,10 +86,21 @@ class MongoClient(BaseClient):
         query = dict(_id=item_id)
         return self._get_collection(item_type).update_one(query, {'$set': prepared_data}).modified_count == 1
 
+    def get(self, item_type: str, query: dict) -> typing.Optional[dict]:
+        data = self._get_collection(item_type).find_one(self._prepare_data(query))
+        if data:
+            return self._return_data(data)
+
     def _prepare_data(self, query: dict) -> dict:
         return {
             f'_{key}' if key == 'id' else key: bson.ObjectId(value) if key == 'id' else value
             for key, value in query.items()
+        }
+
+    def _return_data(self, data: dict) -> dict:
+        return {
+            'id' if key == '_id' else key: str(value) if key == '_id' else value
+            for key, value in data.items()
         }
 
     def _get_collection(self, collection_name: str) -> pymongo.collection.Collection:
@@ -156,7 +168,7 @@ def error_handler(ex):
 
     try:
         raise ex
-    except (errors.EmailError, errors.PasswordError):
+    except (errors.EmailError, errors.PasswordError, errors.ExistingUserEmailError):
         return make_response(ex, 400)
     except:
         flask.abort(500)

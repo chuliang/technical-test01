@@ -74,3 +74,22 @@ def test_mongo_client_update_without_id():
         mongo_client = helpers.MongoClient(uri, db_name)
 
         mongo_client.update(entity_type, data)
+
+
+def test_mongo_client_get():
+    uri = 'uri'
+    db_name = 'db_name'
+    entity_type = 'entity_type'
+    _id = bson.ObjectId()
+    query = dict(id=str(_id))
+    expected_query = dict(_id=_id)
+    with mock.patch.object(helpers, 'pymongo') as mocked_pymongo:
+        mocked_mongo_client = mocked_pymongo.MongoClient.return_value
+        mocked_db = mocked_mongo_client[db_name]
+        mocked_collection = mocked_db.get_collection.return_value
+        mongo_client = helpers.MongoClient(uri, db_name)
+
+        mongo_client.get(entity_type, query)
+
+        mocked_db.get_collection.assert_called_with(entity_type)
+        mocked_collection.find_one.assert_called_with(expected_query)

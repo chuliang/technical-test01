@@ -14,6 +14,8 @@ def test_create_user():
     expected_validation_code_generated_at = datetime.now(timezone.utc)
     with mock.patch.object(core, 'helpers') as mocked_helpers, mock.patch.object(core, 'datetime') as mocked_datetime:
         mocked_db_client = mocked_helpers.get_db_client.return_value
+        # get user with this email
+        mocked_db_client.get.return_value = None
         mocked_db_client.insert.return_value = expected_id
         mocked_helpers.get_validation_code.return_value = expected_validation_code
         mocked_datetime.now.return_value = expected_validation_code_generated_at
@@ -55,5 +57,15 @@ def test_create_user_with_empty_password():
     email = 'email@email.fr'
     password = ''
     with pytest.raises(errors.PasswordError):
+
+        core.create_user(email, password)
+
+
+def test_create_user_with_existing_email():
+    email = 'email@email.fr'
+    password = 'password'
+    with mock.patch.object(core, 'helpers') as mocked_helpers, pytest.raises(errors.ExistingUserEmailError):
+        mocked_db_client = mocked_helpers.get_db_client.return_value
+        mocked_db_client.get.return_value = dict(email=email, password='dddfgdg')
 
         core.create_user(email, password)

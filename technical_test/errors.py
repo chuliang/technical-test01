@@ -16,3 +16,7 @@ class EmailError(BaseError):
 
 class PasswordError(BaseError):
     error_type = 'password_error'
+
+
+class ExistingUserEmailError(BaseError):
+    error_type = 'existing_user_email_error'

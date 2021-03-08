@@ -16,6 +16,8 @@ def test_create_user(app):
     expected_id = 'expected_id'
     with mock.patch('technical_test.core.helpers') as mocked_helpers:
         mocked_db_client = mocked_helpers.get_db_client.return_value
+        # get a user with this email -> None
+        mocked_db_client.get.return_value = None
         mocked_db_client.insert.return_value = 'expected_id'
 
         resp = test_client.post('/users', json=payload)
@@ -35,6 +37,8 @@ def test_create_user_with_wrong_email(app):
     resp = test_client.post('/users', json=payload)
 
     assert resp.status_code == 400
+    assert resp.json.get('error_type') == 'email_error'
+
 
 def test_create_user_with_shorten_password(app):
     test_client = app.test_client()
@@ -43,3 +47,19 @@ def test_create_user_with_shorten_password(app):
     resp = test_client.post('/users', json=payload)
 
     assert resp.status_code == 400
+    assert resp.json.get('error_type') == 'password_error'
+
+
+def test_create_user_with_existing_email(app):
+    test_client = app.test_client()
+    payload = dict(email='email@email.fr', password='password')
+    expected_id = 'expected_id'
+    with mock.patch('technical_test.core.helpers') as mocked_helpers:
+        mocked_db_client = mocked_helpers.get_db_client.return_value
+        mocked_db_client.get.return_value = dict(email=payload['email'], password='sdfsfdf')
+
+        resp = test_client.post('/users', json=payload)
+
+    assert resp.status_code == 400
+    assert resp.json.get('error_type') == 'existing_user_email_error'
+

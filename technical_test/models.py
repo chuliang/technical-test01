@@ -22,6 +22,10 @@ class BaseModel:
             if field.metadata.get('exposed')
         }
 
+    @classmethod
+    def fields(self):
+        return dataclasses.fields(self)
+
 
 @dataclasses.dataclass(frozen=True)
 class User(BaseModel):

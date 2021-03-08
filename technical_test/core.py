@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from technical_test import dao, helpers, models
+from technical_test import dao, helpers, models, errors
 from technical_test.helpers import get_logger, send_email
 
 LOG = get_logger(__name__)
@@ -11,6 +11,10 @@ def create_user(email, password):
     helpers.check_password(password)
 
     user_dao = dao.User(helpers.get_db_client())
+    existing_user = user_dao.get(email=email)
+    if existing_user:
+        raise errors.ExistingUserEmailError(email)
+
     user = models.User(
         email=email,
         password=password
