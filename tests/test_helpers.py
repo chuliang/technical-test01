@@ -74,4 +74,3 @@ def test_mongo_client_update_without_id():
         mongo_client = helpers.MongoClient(uri, db_name)
 
         mongo_client.update(entity_type, data)
-

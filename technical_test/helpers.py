@@ -1,11 +1,17 @@
 import logging
 import os
 import random
+import re
 import sys
 
 import bson
 import flask
 import pymongo
+
+from technical_test import errors
+
+EMAIL_REGEX = r'^[a-z0-9]+[\._]?[a-z0-9]+[@]\w+[.]\w{2,3}$'
+PASSWORD_MIN_LENGTH = 8
 
 
 def get_logger(name: str) -> logging.Logger:
@@ -14,6 +20,7 @@ def get_logger(name: str) -> logging.Logger:
     logger.setLevel(logging.INFO)
 
     return logger
+
 
 LOG = get_logger(__name__)
 
@@ -32,18 +39,11 @@ def init_config(app: flask.Flask, config: dict = None, root_dir: str = None):
         raise RuntimeError('env var APP_SETTINGS is not set')
 
 
-class BaseError(Exception):
-    error_type: str
-
-    def __init__(self, message):
-        self.message = message
-
-
-class BaseClientError(BaseError):
+class BaseClientError(errors.BaseError):
     pass
 
 
-class MissingIdError(BaseError):
+class MissingIdError(errors.BaseError):
     pass
 
 
@@ -69,7 +69,7 @@ class BaseClient:
 
 class MongoClient(BaseClient):
 
-    def _init_connection(self, uri: str, db_name: str):
+    def _init_connection(self, uri: str, db_name: str) -> None:
         self._client = pymongo.MongoClient(uri)
         self._db = self._client[db_name]
 
@@ -91,7 +91,7 @@ class MongoClient(BaseClient):
             for key, value in query.items()
         }
 
-    def _get_collection(self, collection_name: str):
+    def _get_collection(self, collection_name: str) -> pymongo.collection.Collection:
         return self._db.get_collection(collection_name)
 
     def close(self):
@@ -109,7 +109,7 @@ def get_db_client(app: flask.Flask = None) -> BaseClient:
     return flask.g.db_client
 
 
-def init_db(app: flask.Flask):
+def init_db(app: flask.Flask) -> None:
     get_db_client(app)
 
     @app.teardown_appcontext
@@ -123,9 +123,40 @@ def get_validation_code() -> int:
     return random.randint(1000, 9999)
 
 
-def send_email(receiver, subject, message):
+def send_email(receiver: str, subject: str, message: str) -> None:
     LOG.info(f'Send an email to {receiver} with subject "{subject}" and message "{message}"')
 
 
-def exposed_field():
-    pass
+def is_email(email: str) -> bool:
+    return bool(re.search(EMAIL_REGEX, email))
+
+
+def check_email(email: str) -> None:
+    if not is_email(email):
+        raise errors.EmailError(email)
+
+
+def check_password(password: str) -> None:
+    if not password:
+        raise errors.PasswordError('Password is required')
+
+    if len(password) < PASSWORD_MIN_LENGTH:
+        raise errors.PasswordError('Password must have 8 characters minimum')
+
+
+def error_handler(ex):
+    def make_response(ex: errors.BaseError, status_code: int):
+        resp_json = {
+            'message': ex.message
+        }
+        if hasattr(ex, 'error_type'):
+            resp_json['error_type'] = ex.error_type
+        resp = flask.jsonify(**resp_json)
+        return resp, status_code
+
+    try:
+        raise ex
+    except (errors.EmailError, errors.PasswordError):
+        return make_response(ex, 400)
+    except:
+        flask.abort(500)

@@ -1,7 +1,9 @@
 from datetime import datetime, timezone
 from unittest import mock
 
-from technical_test import core
+import pytest
+
+from technical_test import core, errors
 
 
 def test_create_user():
@@ -23,3 +25,35 @@ def test_create_user():
     assert user.id == expected_id
     assert user.validation_code == expected_validation_code
     assert user.validation_code_generated_at == expected_validation_code_generated_at
+
+
+def test_create_user_with_wrong_email():
+    email = 'emailemail.fr'
+    password = 'password'
+    with pytest.raises(errors.EmailError):
+
+        core.create_user(email, password)
+
+
+def test_create_user_with_empty_email():
+    email = ''
+    password = 'password'
+    with pytest.raises(errors.EmailError):
+
+        core.create_user(email, password)
+
+
+def test_create_user_with_shorten_password():
+    email = 'email@email.fr'
+    password = 'pass'
+    with pytest.raises(errors.PasswordError):
+
+        core.create_user(email, password)
+
+
+def test_create_user_with_empty_password():
+    email = 'email@email.fr'
+    password = ''
+    with pytest.raises(errors.PasswordError):
+
+        core.create_user(email, password)

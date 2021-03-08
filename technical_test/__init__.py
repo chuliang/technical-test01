@@ -2,8 +2,7 @@ import os
 
 import flask
 
-from technical_test import helpers
-
+from technical_test import helpers, errors
 
 # ../
 ROOT_DIR =  os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
@@ -18,5 +17,6 @@ def create_app(config: dict = None):
 
     from technical_test.routes import blueprint
     app.register_blueprint(blueprint)
+    app.register_error_handler(errors.BaseError, helpers.error_handler)
 
     return app

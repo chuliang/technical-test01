@@ -26,3 +26,20 @@ def test_create_user(app):
     assert resp.json.get('validation_code') is None
     assert resp.json.get('validation_code_generated_at') is None
     assert resp.json.get('password') is None
+
+
+def test_create_user_with_wrong_email(app):
+    test_client = app.test_client()
+    payload = dict(email='emailemail.fr', password='password')
+
+    resp = test_client.post('/users', json=payload)
+
+    assert resp.status_code == 400
+
+def test_create_user_with_shorten_password(app):
+    test_client = app.test_client()
+    payload = dict(email='email@email.fr', password='pass')
+
+    resp = test_client.post('/users', json=payload)
+
+    assert resp.status_code == 400

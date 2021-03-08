@@ -7,6 +7,9 @@ LOG = get_logger(__name__)
 
 
 def create_user(email, password):
+    helpers.check_email(email)
+    helpers.check_password(password)
+
     user_dao = dao.User(helpers.get_db_client())
     user = models.User(
         email=email,
