@@ -1,6 +1,8 @@
+from unittest import mock
+
 import pytest
 
-from technical_test import create_app
+import technical_test
 
 
 @pytest.fixture
@@ -13,5 +15,6 @@ def config():
 
 @pytest.fixture
 def app(config):
-    app = create_app(config)
-    yield app
+    with mock.patch.object(technical_test.helpers, 'init_db'):
+        app = technical_test.create_app(config)
+        yield app

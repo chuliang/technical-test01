@@ -20,6 +20,10 @@ class BaseDao:
         user_id = self._client.insert(self.entity_type, model_instance.as_dict())
         return model_instance.mutate(id=user_id)
 
+    def update(self, model_instance: models.BaseModel) -> models.User:
+        self._client.update(self.entity_type, model_instance.as_dict())
+        return model_instance.mutate()
+
 
 class User(BaseDao):
     entity_type = 'users'

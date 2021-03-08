@@ -43,3 +43,35 @@ def test_mongo_client_insert():
 
         mocked_db.get_collection.assert_called_with(entity_type)
         mocked_collection.insert_one.assert_called_with(expected_data)
+
+
+def test_mongo_client_update():
+    uri = 'uri'
+    db_name = 'db_name'
+    entity_type = 'entity_type'
+    _id = bson.ObjectId()
+    data = dict(data='data', id=str(_id))
+    expected_filter = dict(_id=_id)
+    expected_query = {'$set': dict(data='data')}
+    with mock.patch.object(helpers, 'pymongo') as mocked_pymongo:
+        mocked_mongo_client = mocked_pymongo.MongoClient.return_value
+        mocked_db = mocked_mongo_client[db_name]
+        mocked_collection = mocked_db.get_collection.return_value
+        mongo_client = helpers.MongoClient(uri, db_name)
+
+        mongo_client.update(entity_type, data)
+
+        mocked_db.get_collection.assert_called_with(entity_type)
+        mocked_collection.update_one.assert_called_with(expected_filter, expected_query)
+
+
+def test_mongo_client_update_without_id():
+    uri = 'uri'
+    db_name = 'db_name'
+    entity_type = 'entity_type'
+    data = dict(data='data')
+    with pytest.raises(helpers.MissingIdError):
+        mongo_client = helpers.MongoClient(uri, db_name)
+
+        mongo_client.update(entity_type, data)
+

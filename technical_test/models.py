@@ -1,4 +1,5 @@
 import dataclasses
+from datetime import datetime
 
 
 @dataclasses.dataclass(frozen=True)
@@ -27,3 +28,5 @@ class User(BaseModel):
     email: str = dataclasses.field(metadata=dict(exposed=True))
     password: str
     id: str = dataclasses.field(default=None, metadata=dict(exposed=True))
+    validation_code: int = None
+    validation_code_generated_at: datetime = None

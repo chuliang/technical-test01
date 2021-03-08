@@ -23,4 +23,6 @@ def test_create_user(app):
     assert resp.status_code == 200
     assert resp.json.get('email') == payload.get('email')
     assert resp.json.get('id') == expected_id
+    assert resp.json.get('validation_code') is None
+    assert resp.json.get('validation_code_generated_at') is None
     assert resp.json.get('password') is None
