@@ -13,8 +13,8 @@ ENV PYTHONPATH=$WORKDIR
 RUN mkdir -p $WORKDIR
 WORKDIR $WORKDIR
 
-# commented during development step
-#COPY technical_test technical_test
+COPY technical_test technical_test
+COPY tests tests
 ADD poetry.lock pyproject.toml $WORKDIR
 
 RUN poetry config virtualenvs.create false

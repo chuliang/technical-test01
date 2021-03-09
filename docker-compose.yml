@@ -9,7 +9,6 @@ services:
       - APP_SETTINGS=instance/settings.json
     volumes:
       - ./instance:/var/app/instance
-      - ./technical_test:/var/app/technical_test
     restart: on-failure
     depends_on:
       - mongo
@@ -22,7 +21,6 @@ services:
       - APP_SETTINGS=instance/settings.json
     volumes:
       - ./instance:/var/app/instance
-      - ./technical_test:/var/app/technical_test
     restart: on-failure
     depends_on:
       - rabbitmq
