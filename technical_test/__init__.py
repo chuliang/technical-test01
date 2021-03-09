@@ -14,6 +14,7 @@ def create_app(config: dict = None):
     helpers.init_config(app, config, ROOT_DIR)
     with app.app_context():
         helpers.init_db(app)
+        helpers.init_queue(app)
 
     from technical_test.routes import blueprint
     app.register_blueprint(blueprint)

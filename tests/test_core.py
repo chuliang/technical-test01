@@ -4,7 +4,7 @@ from unittest import mock
 import bson
 import pytest
 
-from technical_test import core, errors
+from technical_test import core, errors, tasks
 
 
 def test_create_user(config):
@@ -13,26 +13,24 @@ def test_create_user(config):
     hashed_password = 'hashed_password'
     salt = 'salt'
     expected_id = 'expected_id'
-    expected_validation_code = 1234
-    expected_validation_code_generated_at = datetime.now(timezone.utc)
-    with mock.patch.object(core, 'helpers') as mocked_helpers, mock.patch.object(core, 'datetime') as mocked_datetime:
+    with mock.patch.object(core, 'helpers') as mocked_helpers:
         mocked_helpers.hash_password.return_value = (hashed_password, salt)
         mocked_db_client = mocked_helpers.get_db_client.return_value
+        mocked_queue_client = mocked_helpers.get_queue_client.return_value
         # get user with this email
         mocked_db_client.get.return_value = None
         mocked_db_client.insert.return_value = expected_id
-        mocked_helpers.get_validation_code.return_value = expected_validation_code
-        mocked_datetime.now.return_value = expected_validation_code_generated_at
 
         user = core.create_user(email, password)
 
+    mocked_queue_client.push_task.assert_called_with(
+        tasks.SendValidationCodeEmailTask.name, dict(user_id=expected_id)
+    )
     assert user.email == email
     assert user.password != password
     assert user.password == hashed_password
     assert user.salt == salt
     assert user.id == expected_id
-    assert user.validation_code == expected_validation_code
-    assert user.validation_code_generated_at == expected_validation_code_generated_at
 
 
 def test_create_user_with_wrong_email():

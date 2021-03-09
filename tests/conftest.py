@@ -16,6 +16,6 @@ def config():
 
 @pytest.fixture
 def app(config):
-    with mock.patch.object(technical_test.helpers, 'init_db'):
+    with mock.patch.object(technical_test.helpers, 'init_db'), mock.patch.object(technical_test.helpers, 'init_queue'):
         app = technical_test.create_app(config)
         yield app

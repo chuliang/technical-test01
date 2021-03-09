@@ -11,7 +11,7 @@ def test_base_client():
     db_name = 'db_name'
 
     with pytest.raises(NotImplementedError):
-        helpers.BaseClient(uri, db_name)
+        helpers.BaseDbClient(uri, db_name)
 
 
 def test_mongo_client():

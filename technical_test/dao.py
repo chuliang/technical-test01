@@ -14,11 +14,11 @@ class UnexpectedFieldsError(BaseDaoError):
 
 
 class BaseDao:
-    _client: helpers.BaseClient
+    _client: helpers.BaseDbClient
     entity_type: str
     model: typing.Type[models.BaseModel]
 
-    def __init__(self, client: helpers.BaseClient):
+    def __init__(self, client: helpers.BaseDbClient):
         if not hasattr(self, 'entity_type'):
             raise RuntimeError('entity_type must be filled')
         if not hasattr(self, 'model'):

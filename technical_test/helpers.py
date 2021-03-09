@@ -1,5 +1,7 @@
 import base64
+import functools
 import hashlib
+import json
 import logging
 import os
 import random
@@ -9,12 +11,16 @@ import typing
 
 import bson
 import flask
+import pika
 import pymongo
 
 from technical_test import errors
 
 EMAIL_REGEX = r'^[a-z0-9]+[\._]?[a-z0-9]+[@]\w+[.]\w{2,3}$'
 PASSWORD_MIN_LENGTH = 8
+CACHED_CONFIG = None
+# ../
+ROOT_DIR =  os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
 
 def get_logger(name: str) -> logging.Logger:
@@ -46,6 +52,18 @@ def get_config():
     if flask.current_app:
         return flask.current_app.config
 
+    global CACHED_CONFIG
+    if CACHED_CONFIG:
+        return CACHED_CONFIG
+
+    settings_path = os.environ.get('APP_SETTINGS')
+    if not settings_path:
+        raise RuntimeError('env var APP_SETTINGS is not set')
+
+    with open(os.path.join(ROOT_DIR, settings_path)) as f:
+        CACHED_CONFIG = json.load(f)
+    return CACHED_CONFIG
+
 
 class BaseClientError(errors.BaseError):
     pass
@@ -55,7 +73,7 @@ class MissingIdError(errors.BaseError):
     pass
 
 
-class BaseClient:
+class BaseDbClient:
     _client = None
     _db = None
 
@@ -75,7 +93,31 @@ class BaseClient:
         raise NotImplementedError()
 
 
-class MongoClient(BaseClient):
+class BaseQueueClient:
+    _connection = None
+    _channel = None
+    _queue_name: str
+    _db_client: BaseDbClient
+    # cannot use BaseTask before the declaration, and BaseTask uses BaseClient >-<
+    #_registered_tasks: typing.Dict[str, typing.Type[BaseTask]]
+    _registered_tasks: typing.Dict[str, typing.Type]
+
+    def __init__(self, uri: str, queue_name: str, db_client: BaseDbClient):
+        self._create_connection(uri, queue_name)
+        self._registered_tasks = {}
+        self._db_client = db_client
+
+    def _create_connection(self, uri: str, queue_name: str):
+        raise NotImplementedError()
+
+    def push_task(self, task_name: str, task_kwargs: dict):
+        raise NotImplementedError()
+
+    def close(self):
+        raise NotImplementedError()
+
+
+class MongoClient(BaseDbClient):
 
     def _init_connection(self, uri: str, db_name: str) -> None:
         self._client = pymongo.MongoClient(uri)
@@ -111,31 +153,64 @@ class MongoClient(BaseClient):
         }
 
     def _get_collection(self, collection_name: str) -> pymongo.collection.Collection:
-        return self._db.get_collection(collection_name)
+        options = bson.CodecOptions(tz_aware=True)
+        return self._db.get_collection(collection_name, codec_options=options)
 
     def close(self):
         self._client.close()
 
 
-def get_db_client(app: flask.Flask = None) -> BaseClient:
-    if not app:
-        app = flask.current_app
+def get_db_client(cached=True) -> BaseDbClient:
+
+    def _get_client():
+        config = get_config()
+        LOG.info(f'_get_client')
+        return MongoClient(
+            config.get('MONGO_URI'), config.get('MONGO_DB')
+        )
+
+    if not flask.current_app or not cached:
+        return _get_client()
 
     if 'db_client' not in flask.g:
-        flask.g.db_client = MongoClient(
-            app.config.get('MONGO_URI'), app.config.get('MONGO_DB')
-        )
+        flask.g.db_client = _get_client()
     return flask.g.db_client
 
 
+def get_queue_client(cached: bool = False, db_client: BaseDbClient = None) -> BaseQueueClient:
+    if not db_client:
+        db_client = get_db_client()
+
+    def _get_client():
+        config = get_config()
+        return RabbitClient(
+            config.get('RABBIT_URI'), config.get('RABBIT_QUEUE'), db_client
+        )
+
+    if not flask.current_app or not cached:
+        return _get_client()
+
+    if 'queue_client' not in flask.g:
+        flask.g.queue_client = _get_client()
+    return flask.g.queue_client
+
+
 def init_db(app: flask.Flask) -> None:
-    get_db_client(app)
 
     @app.teardown_appcontext
     def teardown_db(exception):
-        db = flask.g.pop('db_client', None)
-        if db is not None:
-            db.close()
+        db_client = flask.g.pop('db_client', None)
+        if db_client is not None:
+            db_client.close()
+
+
+def init_queue(app: flask.Flask) -> None:
+
+    @app.teardown_appcontext
+    def teardown_db(exception):
+        queue_client = flask.g.pop('queue_client', None)
+        if queue_client is not None:
+            queue_client.close()
 
 
 def get_validation_code() -> int:
@@ -196,3 +271,68 @@ def hash_password(password: str, secret_key: str, salt: str = None) -> typing.Tu
         hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), encoded_salted_key, 100000)
     ).decode('utf-8')
     return hashed_password, salt
+
+
+class BaseTask:
+    name: str
+
+    def __init__(self, queue_client: BaseDbClient = None, db_client: BaseDbClient = None):
+        self._queue_client = queue_client
+        self._db_client = db_client
+
+    @property
+    def queue_client(self) -> BaseQueueClient:
+        if not self._queue_client:
+            self._queue_client = get_queue_client()
+        return self._queue_client
+
+    @property
+    def db_client(self) -> BaseDbClient:
+        if not self._db_client:
+            self._db_client = get_db_client()
+        return self._db_client
+
+
+class RabbitClient(BaseQueueClient):
+    _connection: pika.BlockingConnection
+    _channel = pika.adapters.blocking_connection.BlockingChannel
+
+    def _create_connection(self, uri: str, queue_name: str):
+        self._connection = pika.BlockingConnection(pika.ConnectionParameters(uri))
+        self._channel = self._connection.channel()
+        self._queue_name = queue_name
+        self._channel.queue_declare(queue=self._queue_name)
+
+    def push_task(self, task_name: str, task_kwargs: dict):
+        self._channel.basic_publish(
+            exchange='',
+            routing_key=self._queue_name,
+            body=json.dumps(dict(task_name=task_name, task_kwargs=task_kwargs))
+        )
+
+    def listen(self):
+
+        def ack_message(channel, delivery_tag):
+            if channel.is_open:
+                channel.basic_ack(delivery_tag)
+
+        def callback(ch, method, properties, body):
+            LOG.info(f'receive {body}')
+            deserialized_body = json.loads(body)
+            self.pop_task(deserialized_body.get('task_name'), deserialized_body.get('task_kwargs'))
+
+            cb = functools.partial(ack_message, self._channel, method.delivery_tag)
+            self._connection.add_callback_threadsafe(cb)
+
+        self._channel.basic_consume(queue=self._queue_name, on_message_callback=callback)
+        self._channel.start_consuming()
+
+    def pop_task(self, task_name: str, task_kwargs: dict):
+        task = self._registered_tasks[task_name](self, self._db_client)
+        task.run(**task_kwargs)
+
+    def register_task(self, task: BaseTask):
+        self._registered_tasks[task.name] = task
+
+    def close(self):
+        self._connection.close()
