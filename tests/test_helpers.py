@@ -41,7 +41,6 @@ def test_mongo_client_insert():
 
         mongo_client.insert(entity_type, data)
 
-        mocked_db.get_collection.assert_called_with(entity_type)
         mocked_collection.insert_one.assert_called_with(expected_data)
 
 
@@ -61,7 +60,6 @@ def test_mongo_client_update():
 
         mongo_client.update(entity_type, data)
 
-        mocked_db.get_collection.assert_called_with(entity_type)
         mocked_collection.update_one.assert_called_with(expected_filter, expected_query)
 
 
@@ -91,7 +89,6 @@ def test_mongo_client_get():
 
         mongo_client.get(entity_type, query)
 
-        mocked_db.get_collection.assert_called_with(entity_type)
         mocked_collection.find_one.assert_called_with(expected_query)
 
 
