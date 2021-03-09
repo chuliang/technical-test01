@@ -44,4 +44,4 @@ curl --request POST \
 	"validation_code": <YOUR_CODE>
 }'
 ```
-<CREDENTIALS> is composed with the registered email and password.
+`<CREDENTIALS>` is composed with the registered email and password.
